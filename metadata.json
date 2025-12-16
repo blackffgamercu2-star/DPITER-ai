@@ -1,5 +1,5 @@
 {
-  "name": "AI pos generate outfit- Nano Banana",
-  "description": "An AI-powered photo editor that uses Google's 'Nano Banana' (gemini-2.5-flash-image) model to edit images based on text prompts. Upload an image, describe your desired changes, and let the AI bring your vision to life.",
+  "name": "DPITER AI",
+  "description": "An AI-powered virtual try-on studio. Upload a photo of a model and generate multiple stylish outfit variations while keeping the face, pose, and background consistent.",
   "requestFramePermissions": []
 }

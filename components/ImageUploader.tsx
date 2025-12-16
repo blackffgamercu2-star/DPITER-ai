@@ -1,23 +1,64 @@
-
 import React, { useState, useCallback, useRef } from 'react';
 import type { ImageFile } from '../types';
+
+// Resize large images to avoid payload issues with the API
+const MAX_IMAGE_DIMENSION = 1024; 
 
 const fileToBas64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
-        reader.onload = () => {
-            if (typeof reader.result === 'string') {
-                resolve(reader.result.split(',')[1]);
-            } else {
-                reject(new Error('Failed to convert file to base64 string'));
-            }
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                let width = img.width;
+                let height = img.height;
+
+                // Resize logic
+                if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
+                    if (width > height) {
+                        height = (height / width) * MAX_IMAGE_DIMENSION;
+                        width = MAX_IMAGE_DIMENSION;
+                    } else {
+                        width = (width / height) * MAX_IMAGE_DIMENSION;
+                        height = MAX_IMAGE_DIMENSION;
+                    }
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                
+                if (!ctx) {
+                    // Fallback if canvas fails
+                    const fallbackReader = new FileReader();
+                    fallbackReader.readAsDataURL(file);
+                    fallbackReader.onload = () => {
+                         if (typeof fallbackReader.result === 'string') {
+                             resolve(fallbackReader.result.split(',')[1]);
+                         } else {
+                             reject(new Error('Failed to convert file to base64 string'));
+                         }
+                    };
+                    return;
+                }
+
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Use JPEG for better compression unless it's PNG (to preserve transparency, though JPEG is safer for size)
+                // Using 0.85 quality to significantly reduce size
+                const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+                const dataUrl = canvas.toDataURL(mimeType, 0.85);
+                resolve(dataUrl.split(',')[1]);
+            };
+            img.onerror = (error) => reject(error);
         };
         reader.onerror = (error) => reject(error);
     });
 };
 
-// FIX: Define the ImageUploaderProps interface to fix the TypeScript error.
 interface ImageUploaderProps {
     onImageUpload: (image: ImageFile | null) => void;
     imagePreviewUrl: string | null;
@@ -36,7 +77,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, ima
             onImageUpload({
                 file: file,
                 base64: base64,
-                mimeType: file.type,
+                mimeType: file.type === 'image/png' ? 'image/png' : 'image/jpeg', // Ensure mimeType matches what we encoded
             });
         } catch (error) {
             console.error("Error converting file:", error);
